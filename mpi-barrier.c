@@ -6,7 +6,6 @@
 
 void barrier(int rank, int nprocs) {
     int s = 2; // stage
-    int i = rank;
     int *g = malloc(32768 * sizeof(int));
 
     while (s <= nprocs) {
@@ -23,6 +22,25 @@ void barrier(int rank, int nprocs) {
     printf("Hello world: %d\n", rank);
 }
 
+int all_to_all_reduce(int rank, int nprocs) {
+    int s = 2; // stage
+    int sum = rank;
+    int tmp;
+
+    while (s <= nprocs) {
+        const int partner = rank ^ (s / 2);
+        if (rank < partner) {
+            MPI_Send(&rank, 1, MPI_INT, partner, 0, MPI_COMM_WORLD);
+            MPI_Recv(&tmp, 1, MPI_INT, partner, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        } else {
+            MPI_Recv(&tmp, 1, MPI_INT, partner, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Send(&rank, 1, MPI_INT, partner, 0, MPI_COMM_WORLD);
+        }
+        sum += tmp;
+        s *= 2;
+    }
+}
+
 int main(int argc, char **argv) {
     MPI_Init(&argc, &argv);
 
@@ -33,6 +51,15 @@ int main(int argc, char **argv) {
     printf("Starting: %d\n", rank);
 
     barrier(rank, nprocs);
+
+    int actual = (nprocs * (nprocs - 1)) / 2;
+    int sum = all_to_all_reduce(rank, nprocs);
+    int result = 0;
+    MPI_Allreduce(&sum, &result, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    if (rank == 0) {
+        printf("Sum: %d\n", result / nprocs);
+        printf("Expected: %d\n", actual);
+    }
 
     MPI_Finalize();
     return 0;
