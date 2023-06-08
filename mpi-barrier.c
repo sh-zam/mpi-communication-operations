@@ -30,15 +30,16 @@ int all_to_all_reduce(int rank, int nprocs) {
     while (s <= nprocs) {
         const int partner = rank ^ (s / 2);
         if (rank < partner) {
-            MPI_Send(&rank, 1, MPI_INT, partner, 0, MPI_COMM_WORLD);
+            MPI_Send(&sum, 1, MPI_INT, partner, 0, MPI_COMM_WORLD);
             MPI_Recv(&tmp, 1, MPI_INT, partner, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         } else {
             MPI_Recv(&tmp, 1, MPI_INT, partner, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            MPI_Send(&rank, 1, MPI_INT, partner, 0, MPI_COMM_WORLD);
+            MPI_Send(&sum, 1, MPI_INT, partner, 0, MPI_COMM_WORLD);
         }
         sum += tmp;
         s *= 2;
     }
+    return sum;
 }
 
 int main(int argc, char **argv) {
